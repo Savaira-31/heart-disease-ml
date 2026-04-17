@@ -82,7 +82,7 @@ st.title("❤️ ML Lab Project: Heart Disease Prediction")
 st.markdown("### Comparing **Random Forest** vs **Logistic Regression**")
 
 st.sidebar.title("Navigation")
-menu = st.sidebar.radio("Go to", ["Dataset Preview", "Model Comparison", "Make a Prediction"])
+menu = st.sidebar.radio("Go to", ["Make a Prediction","Dataset Preview","Model Comparison"])
 
 # --- TAB 1: Dataset ---
 if menu == "Dataset Preview":
