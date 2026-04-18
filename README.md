@@ -1,96 +1,93 @@
-# ❤️ Heart Disease Prediction Web App
+# 💓 Heart Disease Prediction using Machine Learning
 
-An interactive **Machine Learning web application** that predicts the risk of heart disease based on clinical patient data.
-This project compares the performance of **Random Forest** and **Logistic Regression** models.
+An advanced AI-powered web application designed to predict the risk of heart disease based on clinical patient data.  
+This project implements a complete Machine Learning pipeline, compares multiple models, and provides an interactive prediction system.
 
 ---
 
-## 🌐 Live Demo
+## 🧠 Project Overview
 
-👉 https://savaira-31-heart-disease-ml-app-kaqw9l.streamlit.app/
+Heart disease is one of the leading causes of death worldwide.  
+This project aims to assist early diagnosis by using machine learning models to predict whether a patient is at risk of heart disease based on clinical features.
+
+The system is trained on a real-world UCI dataset and evaluates multiple algorithms to identify the best-performing model.
+
+---
+
+## 🧪 Machine Learning Models Used
+
+- Logistic Regression (Baseline Model)
+- Random Forest Classifier (Ensemble Model)
+- XGBoost Classifier (Best Performing Model)
 
 ---
 
 ## 🚀 Key Features
 
-* 🔮 **Real-time Predictions**
-  Enter patient data and get instant AI-based predictions
+- 🔍 **3 Model Comparison**
+  Evaluates Logistic Regression, Random Forest, and XGBoost
 
-* 📊 **Probability Scoring**
-  Shows exact **risk percentage** instead of just Yes/No
+- 🧹 **Real-world Data Handling**
+  Handles missing values using median (numerical) and mode (categorical) imputation
 
-* ⚖️ **Model Comparison**
-  Compare models using **Accuracy & Confusion Matrix**
+- 🔤 **Feature Encoding**
+  Label Encoding applied for categorical variables
 
-* 🧠 **Explainable AI (XAI)**
-  Visual insights into important features like Age & Cholesterol
+- 📊 **Model Evaluation**
+  Accuracy comparison, confusion matrix, and classification report
 
-* 🎨 **Interactive UI**
-  Built with Streamlit including animations & progress bars
+- 📈 **Risk Prediction Output**
+  Provides probability-based prediction instead of simple binary output
+
+---
+
+## 🧠 Machine Learning Pipeline
+
+1. 📥 Data Collection  
+   - UCI Heart Disease Dataset (920 records)
+
+2. 🧹 Data Preprocessing  
+   - Missing value treatment  
+   - Data cleaning and transformation
+
+3. 🔤 Feature Encoding  
+   - Label Encoding for categorical variables
+
+4. 🧠 Model Training  
+   - Logistic Regression  
+   - Random Forest  
+   - XGBoost
+
+5. 📊 Model Evaluation  
+   - Accuracy comparison  
+   - Confusion matrix  
+   - Classification report
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Language:** Python
-* **ML Models:** Scikit-Learn (Random Forest, Logistic Regression)
-* **Data Handling:** Pandas, NumPy
-* **Visualization:** Matplotlib, Seaborn
-* **GUI Framework:** Streamlit
-* **Deployment:** Streamlit Community Cloud
+- **Language:** Python  
+- **Libraries:** Pandas, NumPy, Scikit-Learn, XGBoost, Matplotlib, Seaborn  
+- **Deployment:** Streamlit (optional web app)
 
 ---
 
-## 🤖 Machine Learning Pipeline
+## 📊 Results
 
-* **Data Collection:**
-  UCI Heart Disease dataset (via OpenML)
-
-* **Preprocessing:**
-
-  * Missing value handling
-  * One-Hot Encoding
-  * Feature Scaling (StandardScaler)
-
-* **Model Training:**
-
-  * 80/20 Train-Test Split
-
-* **Evaluation:**
-
-  * Accuracy Score
-  * Confusion Matrix
-  * Classification Report
+- Logistic Regression Accuracy: ~78%  
+- Random Forest Accuracy: ~83%  
+- XGBoost Accuracy: ~86% (Best Model)
 
 ---
 
-## 💻 How to Run Locally
+## 🌐 Live Demo
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/Savaira-31/heart-disease-ml.git
-
-# 2. Navigate to the project directory
-cd heart-disease-ml
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Run the Streamlit app
-streamlit run app.py
-```
-
----
-
-## 📌 Future Improvements
-
-* Add more ML models (SVM, XGBoost)
-* Deploy using Docker
-* Add user authentication
-* Improve UI/UX
+https://savaira-31-heart-disease-ml-app-kaqw9l.streamlit.app/
 
 ---
 
 ## 👩‍💻 Author
 
-**Savaira Majeed** 
+Savaira Majeed  
+DSAI231103031
