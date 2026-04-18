@@ -1,196 +1,197 @@
 import pandas as pd
 import numpy as np
 import streamlit as st
-from sklearn.datasets import fetch_openml
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import joblib
+import time
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.model_selection import train_test_split
 
-# --- Page Config ---
 st.set_page_config(page_title="Heart Disease Predictor", page_icon="❤️", layout="wide")
 
-# --- 1. DATA LOADING ---
 @st.cache_resource
-def load_data():
-    # Fetching Heart Disease dataset from OpenML (UCI)
-    df = fetch_openml(name='heart-disease', version=1, as_frame=True)['frame']
-    return df
+def load_models():
+    lr = joblib.load('lr_model.pkl')
+    rf = joblib.load('rf_model.pkl')
+    xgb = joblib.load('xgb_model.pkl')
+    encoders = joblib.load('encoders.pkl')
+    cols = joblib.load('columns.pkl')
+    return lr, rf, xgb, encoders, cols
 
-df = load_data()
+try:
+    lr_model, rf_model, xgb_model, encoders, model_columns = load_models()
+except:
+    st.error("Error: Models load nahi hue. Pehle 'train.py' run karein.")
+    st.stop()
 
-# --- 2. DATA PREPROCESSING ---
-# Handling missing values and converting types
-df = df.dropna()
-# Target column is usually 'num' or 'target' (0 = No Disease, 1,2,3,4 = Disease)
-# We convert it to 0 (No) and 1 (Yes)
-if 'num' in df.columns:
-    df['target'] = df['num'].apply(lambda x: 1 if x > 0 else 0)
-    df = df.drop('num', axis=1)
-elif 'target' in df.columns:
-    df['target'] = df['target'].apply(lambda x: 1 if x > 0 else 0)
+# Data for graphs
+df = pd.read_csv('heart_disease_uci.csv')
+df['target'] = (df['num'] > 0).astype(int)
+df = df.drop(['id', 'dataset', 'num'], axis=1)
 
-# Separating X and y
-X = df.drop('target', axis=1)
-y = df['target']
+# MISSING VALUES FILL KARNA (Train mein jo kiya tha wo yahan bhi kiya)
+num_cols = ['trestbps', 'chol', 'thalch', 'oldpeak', 'ca']
+for col in num_cols:
+    df[col] = df[col].fillna(df[col].median())
 
-# One-hot encoding for categorical variables
-X = pd.get_dummies(X)
+cat_cols = ['fbs', 'restecg', 'exang', 'slope', 'thal']
+for col in cat_cols:
+    df[col] = df[col].fillna(df[col].mode()[0])
 
-# Splitting Data (80% train, 20% test)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+y_full = df['target']
+X_full = df.drop('target', axis=1)
 
-# Scaling the data (Important for Logistic Regression)
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+for col in encoders.keys():
+    X_full[col] = encoders[col].transform(X_full[col].astype(str))
 
-# Convert back to dataframe to keep column names (useful for GUI feature input)
-X_train_scaled_df = pd.DataFrame(X_train_scaled, columns=X.columns)
-X_test_scaled_df = pd.DataFrame(X_test_scaled, columns=X.columns)
+_, X_test, _, y_test = train_test_split(X_full, y_full, test_size=0.2, random_state=42)
 
+pred_lr = lr_model.predict(X_test)
+pred_rf = rf_model.predict(X_test)
+pred_xgb = xgb_model.predict(X_test)
 
-# --- 3. MODEL TRAINING ---
-@st.cache_resource
-def train_models():
-    # Model 1: Random Forest
-    rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
-    rf_model.fit(X_train_scaled_df, y_train)
-    
-    # Model 2: Logistic Regression
-    lr_model = LogisticRegression(max_iter=1000, random_state=42)
-    lr_model.fit(X_train_scaled_df, y_train)
-    
-    return rf_model, lr_model
+acc_lr = accuracy_score(y_test, pred_lr)
+acc_rf = accuracy_score(y_test, pred_rf)
+acc_xgb = accuracy_score(y_test, pred_xgb)
 
-rf_model, lr_model = train_models()
-
-# Predictions
-rf_pred = rf_model.predict(X_test_scaled_df)
-lr_pred = lr_model.predict(X_test_scaled_df)
-
-# Accuracies
-rf_acc = accuracy_score(y_test, rf_pred)
-lr_acc = accuracy_score(y_test, lr_pred)
-
-
-# --- 4. GUI DESIGN ---
+# GUI
 st.title("❤️ ML Lab Project: Heart Disease Prediction")
-st.markdown("### Comparing **Random Forest** vs **Logistic Regression**")
+st.markdown("### Comparing **Logistic Regression**, **Random Forest** & **XGBoost**")
 
 st.sidebar.title("Navigation")
-menu = st.sidebar.radio("Go to", ["Make a Prediction","Dataset Preview","Model Comparison"])
+menu = st.sidebar.radio("Go to", ["Make a Prediction", "Model Comparison", "Dataset Preview"])
 
-# --- TAB 1: Dataset ---
 if menu == "Dataset Preview":
-    st.subheader("📊 Heart Disease Dataset")
-    st.write("Total Records:", df.shape[0])
-    st.dataframe(df.head(10))
+    st.subheader("📊 Heart Disease UCI Dataset")
+    st.write("Total Records:", len(df))
+    st.dataframe(df.head(5))
 
-# --- TAB 2: Model Comparison ---
 if menu == "Model Comparison":
     st.subheader("📈 Model Performance Comparison")
-    
-    col1, col2 = st.columns(2)
-    
+    col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric(label="Random Forest Accuracy", value=f"{rf_acc * 100:.2f}%")
-        st.text("Classification Report:")
-        st.text(classification_report(y_test, rf_pred))
-        
+        st.metric("Logistic Regression", f"{acc_lr*100:.2f}%")
+        st.text(classification_report(y_test, pred_lr))
     with col2:
-        st.metric(label="Logistic Regression Accuracy", value=f"{lr_acc * 100:.2f}%")
-        st.text("Classification Report:")
-        st.text(classification_report(y_test, lr_pred))
-        
-    # Confusion Matrices
-    st.subheader("Confusion Matrices")
-    col3, col4 = st.columns(2)
-    
+        st.metric("Random Forest", f"{acc_rf*100:.2f}%")
+        st.text(classification_report(y_test, pred_rf))
     with col3:
-        fig1, ax1 = plt.subplots()
-        sns.heatmap(confusion_matrix(y_test, rf_pred), annot=True, fmt='d', cmap='Blues', ax=ax1)
-        ax1.set_title("Random Forest")
-        ax1.set_xlabel("Predicted")
-        ax1.set_ylabel("Actual")
-        st.pyplot(fig1)
-        
-    with col4:
-        fig2, ax2 = plt.subplots()
-        sns.heatmap(confusion_matrix(y_test, lr_pred), annot=True, fmt='d', cmap='Greens', ax=ax2)
-        ax2.set_title("Logistic Regression")
-        ax2.set_xlabel("Predicted")
-        ax2.set_ylabel("Actual")
-        st.pyplot(fig2)
-    # Ye code Model Comparison wale section ke end mein add kar dein
-    st.subheader("🧠 What did the AI learn? (Feature Importance)")
-    importances = pd.Series(rf_model.feature_importances_, index=X.columns).sort_values(ascending=False).head(10)
-    fig_imp, ax_imp = plt.subplots()
-    importances.plot(kind='barh', ax=ax_imp, color='lightcoral')
-    ax_imp.set_title("Top 10 Features affecting Heart Disease")
-    st.pyplot(fig_imp)  
+        st.metric("XGBoost", f"{acc_xgb*100:.2f}%")
+        st.text(classification_report(y_test, pred_xgb))
 
-# --- TAB 3: Prediction GUI (UPGRADED) ---
+    st.subheader("Confusion Matrices")
+    cols_cm = st.columns(3)
+    models_eval = [("Logistic Regression", pred_lr), ("Random Forest", pred_rf), ("XGBoost", pred_xgb)]
+    colors = ["Blues", "Greens", "Oranges"]
+    
+    for i, (name, pred) in enumerate(models_eval):
+        with cols_cm[i]:
+            fig, ax = plt.subplots()
+            sns.heatmap(confusion_matrix(y_test, pred), annot=True, fmt='d', cmap=colors[i], ax=ax)
+            ax.set_title(name); ax.set_xlabel("Predicted"); ax.set_ylabel("Actual")
+            st.pyplot(fig)
+
+    st.subheader("📊 Accuracy Bar Chart")
+    fig_bar, ax_bar = plt.subplots()
+    sns.barplot(x=["Logistic Reg.", "Random Forest", "XGBoost"], y=[acc_lr, acc_rf, acc_xgb], ax=ax_bar)
+    ax_bar.set_ylim(0, 1)
+    for i, v in enumerate([acc_lr, acc_rf, acc_xgb]):
+        ax_bar.text(i, v + 0.02, f"{v*100:.1f}%", ha='center')
+    st.pyplot(fig_bar)
+
 if menu == "Make a Prediction":
     st.subheader("🩺 Advanced AI Health Checker")
     
-    # Better layout using columns
+    # DYNAMIC DROPDOWNS: Yeh encoders se exact words uthayenge (Male/Female etc)
     col_a, col_b, col_c = st.columns(3)
-    
     with col_a:
-        age = st.number_input("Age", min_value=1, max_value=100, value=45)
-        sex = st.selectbox("Sex (1=Male, 0=Female)", [1, 0])
+        age = st.number_input("Age", 1, 100, 45)
+        # Encoders se classes utha rahe hain
+        sex_options = list(encoders['sex'].classes_)
+        sex = st.selectbox("Sex", sex_options)
+        
     with col_b:
-        cp = st.selectbox("Chest Pain Type (0-3)", [0, 1, 2, 3])
-        trestbps = st.number_input("Blood Pressure (mm Hg)", min_value=80, max_value=200, value=120)
+        cp_options = list(encoders['cp'].classes_)
+        cp = st.selectbox("Chest Pain Type", cp_options)
+        trestbps = st.number_input("Blood Pressure (mm Hg)", 80, 200, 120)
+        
     with col_c:
-        chol = st.number_input("Cholestoral (mg/dl)", min_value=100, max_value=600, value=200)
-        fbs = st.selectbox("Fasting Blood Sugar > 120 (1=True, 0=False)", [0, 1])
+        chol = st.number_input("Cholestoral (mg/dl)", 100, 600, 200)
+        fbs_options = list(encoders['fbs'].classes_)
+        fbs = st.selectbox("Fasting Blood Sugar", fbs_options)
         
-    thalach = st.slider("Maximum Heart Rate Achieved", min_value=60, max_value=220, value=150)
-    
+    col_d, col_e, col_f = st.columns(3)
+    with col_d:
+        restecg_options = list(encoders['restecg'].classes_)
+        restecg = st.selectbox("Resting ECG", restecg_options)
+        thalch = st.number_input("Max Heart Rate (thalch)", 60, 220, 150)
+        
+    with col_e:
+        exang_options = list(encoders['exang'].classes_)
+        exang = st.selectbox("Exercise Induced Angina", exang_options)
+        oldpeak = st.number_input("ST Depression (oldpeak)", 0.0, 10.0, 0.0)
+        
+    with col_f:
+        slope_options = list(encoders['slope'].classes_)
+        slope = st.selectbox("Slope", slope_options)
+        ca = st.number_input("Major Vessels (ca)", 0, 4, 0)
+        thal_options = list(encoders['thal'].classes_)
+        thal = st.selectbox("Thalassemia (thal)", thal_options)
+
     if st.button("🔬 Run AI Analysis", use_container_width=True):
-        # 1. Adding Loading Animation
-        with st.spinner('🧠 AI Model is analyzing patient data...'):
-            import time
-            time.sleep(2) # 2 second ka artificial loading
+        with st.spinner('🧠 AI Models analyzing...'):
+            time.sleep(2)
+        
+        # GUI inputs ko exact Notebook jaisa format mein dalein
+        input_dict = {
+            'age': float(age),
+            'sex': sex,
+            'cp': cp,
+            'trestbps': float(trestbps),
+            'chol': float(chol),
+            'fbs': fbs,
+            'restecg': restecg,
+            'thalch': float(thalch),
+            'exang': exang,
+            'oldpeak': float(oldpeak),
+            'slope': slope,
+            'ca': float(ca),
+            'thal': thal
+        }
+        
+        input_df = pd.DataFrame([input_dict])
+        
+        # SAVED ENCODERS SE EXACTLY WAHI NUMBERS BANAYENGE JO NOTEBOOK NE BANAYE THE
+        for col in encoders.keys():
+            input_df[col] = encoders[col].transform(input_df[col].astype(str))
             
-        # 2. Preparing Data
-        input_data = pd.DataFrame(np.zeros((1, len(X.columns))), columns=X.columns)
-        if 'age' in input_data.columns: input_data['age'] = age
-        if 'sex' in input_data.columns: input_data['sex'] = sex
-        if 'cp' in input_data.columns: input_data['cp'] = cp
-        if 'trestbps' in input_data.columns: input_data['trestbps'] = trestbps
-        if 'chol' in input_data.columns: input_data['chol'] = chol
-        if 'fbs' in input_data.columns: input_data['fbs'] = fbs
-        if 'thalach' in input_data.columns: input_data['thalach'] = thalach
+        # Order match karna
+        input_df = input_df[model_columns]
         
-        input_scaled = scaler.transform(input_data)
+        # Probabilities
         
-        # 3. Getting Probabilities (Percentage) instead of 0/1
-        rf_proba = rf_model.predict_proba(input_scaled)[0][1] * 100  # Risk percentage
-        lr_proba = lr_model.predict_proba(input_scaled)[0][1] * 100
+        prob_lr = float(lr_model.predict_proba(input_df)[0][1] * 100)
+        prob_rf = float(rf_model.predict_proba(input_df)[0][1] * 100)
+        prob_xgb = float(xgb_model.predict_proba(input_df)[0][1] * 100)
         
         st.success("Analysis Complete!")
         
-        # 4. Displaying Results beautifully
-        col_res1, col_res2 = st.columns(2)
-        
-        with col_res1:
-            st.metric(label="Random Forest Risk Score", value=f"{rf_proba:.1f}%")
-            st.progress(rf_proba / 100) # Progress bar
-            if rf_proba > 50:
-                st.error("🚨 High Risk Detected!")
-            else:
-                st.success("✅ Patient is Safe")
-                
-        with col_res2:
-            st.metric(label="Logistic Regression Risk Score", value=f"{lr_proba:.1f}%")
-            st.progress(lr_proba / 100) # Progress bar
-            if lr_proba > 50:
-                st.error("🚨 High Risk Detected!")
-            else:
-                st.success("✅ Patient is Safe")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("Logistic Reg Risk", f"{prob_lr:.1f}%")
+            st.progress(prob_lr / 100)
+            if prob_lr > 50: st.error("🚨 High Risk")
+            else: st.success("✅ Safe")
+            
+        with c2:
+            st.metric("Random Forest Risk", f"{prob_rf:.1f}%")
+            st.progress(prob_rf / 100)
+            if prob_rf > 50: st.error("🚨 High Risk")
+            else: st.success("✅ Safe")
+            
+        with c3:
+            st.metric("XGBoost Risk", f"{prob_xgb:.1f}%")
+            st.progress(prob_xgb / 100)
+            if prob_xgb > 50: st.error("🚨 High Risk")
+            else: st.success("✅ Safe")
